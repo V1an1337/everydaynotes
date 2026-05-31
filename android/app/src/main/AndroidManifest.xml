@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
+    <uses-permission android:name="android.permission.READ_MEDIA_IMAGES" />
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />
+
+    <application
+        android:name=".EverydayNotesApp"
+        android:allowBackup="true"
+        android:label="@string/app_name"
+        android:theme="@style/AppTheme">
+        <activity
+            android:name=".MainActivity"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:mimeType="text/plain" />
+                <data android:mimeType="image/*" />
+            </intent-filter>
+        </activity>
+
+        <activity
+            android:name=".CaptureTriggerActivity"
+            android:excludeFromRecents="true"
+            android:exported="false"
+            android:finishOnTaskLaunch="true"
+            android:noHistory="true"
+            android:taskAffinity="xyz.v1an.everydaynotes.capture"
+            android:theme="@style/TransparentCaptureTheme" />
+
+        <service
+            android:name=".ScreenshotObserverService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <service
+            android:name=".CaptureOverlayService"
+            android:exported="false" />
+
+        <service
+            android:name=".FloatingCaptureButtonService"
+            android:exported="false"
+            android:foregroundServiceType="dataSync" />
+
+        <service
+            android:name=".QuickCaptureTileService"
+            android:exported="true"
+            android:icon="@android:drawable/ic_menu_upload"
+            android:label="@string/app_name"
+            android:permission="android.permission.BIND_QUICK_SETTINGS_TILE">
+            <intent-filter>
+                <action android:name="android.service.quicksettings.action.QS_TILE" />
+            </intent-filter>
+        </service>
+
+    </application>
+</manifest>

@@ -1,0 +1,19 @@
+<resources>
+    <style name="AppTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:fontFamily">sans</item>
+        <item name="android:windowLightStatusBar">true</item>
+        <item name="android:navigationBarColor">#F7F4EF</item>
+        <item name="android:statusBarColor">#F7F4EF</item>
+    </style>
+
+    <style name="TransparentCaptureTheme" parent="android:style/Theme.Material.Light.NoActionBar">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:windowNoTitle">true</item>
+        <item name="android:windowActionBar">false</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <item name="android:windowDisablePreview">true</item>
+        <item name="android:navigationBarColor">@android:color/transparent</item>
+        <item name="android:statusBarColor">@android:color/transparent</item>
+    </style>
+</resources>

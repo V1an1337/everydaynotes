@@ -1,0 +1,4 @@
+<resources>
+    <string name="app_name">EverydayNotes</string>
+    <string name="accessibility_clipboard_description">Detect Douyin links copied to the clipboard and show the EverydayNotes save window.</string>
+</resources>

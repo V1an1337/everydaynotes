@@ -1,0 +1,16 @@
+[Unit]
+Description=EverydayNotes FastAPI service
+After=network.target postgresql.service
+
+[Service]
+User=everydaynotes
+Group=everydaynotes
+WorkingDirectory=/opt/everydaynotes/backend
+EnvironmentFile=/etc/everydaynotes/everydaynotes.env
+ExecStart=/opt/everydaynotes/backend/.venv/bin/uvicorn everydaynotes.app:app --host 127.0.0.1 --port 8017
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+

@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+*.egg-info/
+backend/.venv/
+backend/everydaynotes-dev.db
+backend/var/
+
+# Node
+node_modules/
+web/dist/
+web/.vite/
+*.tsbuildinfo
+web/vite.config.js
+web/vite.config.d.ts
+
+# Android / Gradle
+.gradle/
+android/.gradle/
+android/local.properties
+android/app/local.properties
+android/app/build/
+android/build/
+*.apk
+*.aab
+
+# OS / IDE
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Local debug artifacts
+phone-screen*.png
+web/*.png
+web.zip

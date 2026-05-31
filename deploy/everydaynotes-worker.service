@@ -1,0 +1,16 @@
+[Unit]
+Description=EverydayNotes background worker
+After=network.target postgresql.service everydaynotes-api.service
+
+[Service]
+User=everydaynotes
+Group=everydaynotes
+WorkingDirectory=/opt/everydaynotes/backend
+EnvironmentFile=/etc/everydaynotes/everydaynotes.env
+ExecStart=/opt/everydaynotes/backend/.venv/bin/python -m everydaynotes.worker
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+
