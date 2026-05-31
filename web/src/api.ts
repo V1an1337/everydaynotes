@@ -38,11 +38,13 @@ export const api = {
       body: JSON.stringify({ password, device_name: deviceName })
     });
   },
-  listNotes(token: string, params: { query?: string; type?: string; tag?: string }) {
+  listNotes(token: string, params: { query?: string; type?: string; tag?: string; from?: string; to?: string }) {
     const query = new URLSearchParams();
     if (params.query) query.set("query", params.query);
     if (params.type) query.set("type", params.type);
     if (params.tag) query.set("tag", params.tag);
+    if (params.from) query.set("from", params.from);
+    if (params.to) query.set("to", params.to);
     return request<{ items: Note[] }>(`/notes?${query.toString()}`, token);
   },
   getNote(token: string, id: string) {
@@ -55,6 +57,11 @@ export const api = {
     return request<Note>(`/notes/${id}`, token, {
       method: "PATCH",
       body: JSON.stringify(payload)
+    });
+  },
+  deleteNote(token: string, id: string) {
+    return request<{ deleted: boolean }>(`/notes/${id}`, token, {
+      method: "DELETE"
     });
   },
   captureDouyin(token: string, shareText: string, remark: string, tags: string[]) {
@@ -74,4 +81,3 @@ export const api = {
     });
   }
 };
-

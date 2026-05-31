@@ -68,7 +68,8 @@ a {
 
 .topbar,
 .toolbar,
-.capture-panel {
+.capture-panel,
+.date-browser {
   display: flex;
   align-items: center;
   gap: 14px;
@@ -124,6 +125,8 @@ h2 {
 .icon-button,
 .icon-text,
 .primary,
+.subtle-button,
+.danger-button,
 .toolbar button,
 .segmented button {
   min-height: 40px;
@@ -139,6 +142,11 @@ h2 {
   place-items: center;
 }
 
+.icon-button.compact {
+  width: 34px;
+  min-height: 34px;
+}
+
 .icon-text {
   gap: 8px;
   padding: 0 14px;
@@ -149,6 +157,49 @@ h2 {
   color: #fff;
   border-color: #365f53;
   padding: 0 16px;
+}
+
+.subtle-button {
+  padding: 0 14px;
+  background: #fffdf9;
+  border-color: #d8d0c2;
+}
+
+.danger-button {
+  padding: 0 14px;
+  background: #fff3ef;
+  color: #9f342b;
+  border: 1px solid #e0b6ad;
+  border-radius: 8px;
+}
+
+.date-browser {
+  margin: 18px 0 0;
+  padding: 14px 0 4px;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
+.date-browser-main {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: min(100%, 360px);
+}
+
+.date-browser-main > div {
+  display: grid;
+  gap: 6px;
+}
+
+.range-label {
+  font-size: 19px;
+  font-weight: 720;
+}
+
+.compact-segmented button {
+  min-height: 34px;
+  min-width: 42px;
 }
 
 .toolbar {
@@ -257,6 +308,34 @@ textarea {
 
 .timeline {
   display: grid;
+  gap: 28px;
+}
+
+.day-group {
+  display: grid;
+  gap: 12px;
+}
+
+.day-heading {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid #ddd6cb;
+}
+
+.day-heading h2 {
+  font-size: 20px;
+}
+
+.day-heading span {
+  color: #7c7168;
+  font-size: 13px;
+}
+
+.day-grid {
+  display: grid;
   grid-template-columns: repeat(auto-fill, minmax(230px, 1fr));
   gap: 16px;
 }
@@ -301,6 +380,25 @@ textarea {
   max-height: 48vh;
   object-fit: contain;
   background: #111;
+}
+
+.media-open {
+  position: relative;
+  padding: 0;
+  background: transparent;
+  text-align: left;
+}
+
+.media-open span {
+  position: absolute;
+  right: 12px;
+  bottom: 12px;
+  padding: 6px 9px;
+  border-radius: 999px;
+  background: rgba(255, 253, 249, 0.88);
+  color: #365f53;
+  font-size: 12px;
+  font-weight: 700;
 }
 
 .status {
@@ -415,6 +513,65 @@ label {
   white-space: pre-wrap;
 }
 
+.detail-actions,
+.confirm-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.confirm-popover {
+  display: grid;
+  gap: 14px;
+  padding: 14px;
+  background: #fff7f2;
+  border: 1px solid #e0b6ad;
+  border-radius: 8px;
+}
+
+.confirm-title {
+  font-weight: 720;
+}
+
+.confirm-copy {
+  margin-top: 4px;
+  color: #6f6258;
+  line-height: 1.5;
+}
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: grid;
+  grid-template-rows: auto 1fr;
+  background: rgba(24, 22, 19, 0.86);
+}
+
+.lightbox-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+  padding: 14px;
+  color: #fffdf9;
+}
+
+.lightbox-stage {
+  overflow: auto;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.lightbox-stage img {
+  max-width: 92vw;
+  max-height: 82vh;
+  transform-origin: center;
+  transition: transform 120ms ease;
+}
+
 .error {
   color: #a23b35;
   font-size: 14px;
@@ -436,6 +593,14 @@ label {
     display: grid;
   }
 
+  .date-browser {
+    align-items: stretch;
+  }
+
+  .date-browser-main {
+    min-width: 100%;
+  }
+
   .capture-form {
     grid-template-columns: 1fr;
   }
@@ -444,4 +609,3 @@ label {
     align-items: flex-start;
   }
 }
-

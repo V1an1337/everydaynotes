@@ -1,20 +1,37 @@
 import {
+  CalendarDays,
+  ChevronLeft,
+  ChevronRight,
   Clock,
   ImageUp,
   Link,
   LogOut,
+  RotateCcw,
   Search,
   Shuffle,
   Tag,
+  Trash2,
   Upload,
   Video,
-  X
+  X,
+  ZoomIn,
+  ZoomOut
 } from "lucide-react";
-import { FormEvent, useEffect, useMemo, useState } from "react";
+import { FormEvent, WheelEvent, useEffect, useMemo, useState } from "react";
 import { api, assetUrl } from "./api";
 import type { Asset, Note } from "./types";
 
 const TOKEN_KEY = "everydaynotes.token";
+
+type DateGrain = "day" | "week" | "month" | "year";
+type ImageViewer = { src: string; alt: string } | null;
+
+const dateGrains: Array<{ value: DateGrain; label: string }> = [
+  { value: "day", label: "日" },
+  { value: "week", label: "周" },
+  { value: "month", label: "月" },
+  { value: "year", label: "年" }
+];
 
 function formatDate(value: string): string {
   return new Intl.DateTimeFormat("zh-CN", {
@@ -23,6 +40,87 @@ function formatDate(value: string): string {
     hour: "2-digit",
     minute: "2-digit"
   }).format(new Date(value));
+}
+
+function formatGroupDate(value: string): string {
+  return new Intl.DateTimeFormat("zh-CN", {
+    year: "numeric",
+    month: "long",
+    day: "numeric",
+    weekday: "short"
+  }).format(new Date(value));
+}
+
+function formatInputDate(date: Date): string {
+  const year = date.getFullYear();
+  const month = `${date.getMonth() + 1}`.padStart(2, "0");
+  const day = `${date.getDate()}`.padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function parseInputDate(value: string): Date {
+  const [year, month, day] = value.split("-").map(Number);
+  return new Date(year, (month || 1) - 1, day || 1);
+}
+
+function startOfDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate());
+}
+
+function startOfWeek(date: Date): Date {
+  const start = startOfDay(date);
+  const day = start.getDay();
+  start.setDate(start.getDate() - ((day + 6) % 7));
+  return start;
+}
+
+function addDateRange(anchor: Date, grain: DateGrain, amount: number): Date {
+  const next = new Date(anchor);
+  if (grain === "day") next.setDate(next.getDate() + amount);
+  if (grain === "week") next.setDate(next.getDate() + amount * 7);
+  if (grain === "month") next.setMonth(next.getMonth() + amount);
+  if (grain === "year") next.setFullYear(next.getFullYear() + amount);
+  return next;
+}
+
+function dateRange(anchorInput: string, grain: DateGrain) {
+  const anchor = parseInputDate(anchorInput);
+  let from: Date;
+  let endExclusive: Date;
+
+  if (grain === "day") {
+    from = startOfDay(anchor);
+    endExclusive = new Date(from);
+    endExclusive.setDate(endExclusive.getDate() + 1);
+  } else if (grain === "week") {
+    from = startOfWeek(anchor);
+    endExclusive = new Date(from);
+    endExclusive.setDate(endExclusive.getDate() + 7);
+  } else if (grain === "month") {
+    from = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+    endExclusive = new Date(anchor.getFullYear(), anchor.getMonth() + 1, 1);
+  } else {
+    from = new Date(anchor.getFullYear(), 0, 1);
+    endExclusive = new Date(anchor.getFullYear() + 1, 0, 1);
+  }
+
+  const to = new Date(endExclusive.getTime() - 1);
+  const label = formatRangeLabel(from, to, grain);
+  return { from, to, label };
+}
+
+function formatRangeLabel(from: Date, to: Date, grain: DateGrain): string {
+  if (grain === "day") {
+    return new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "long", day: "numeric" }).format(from);
+  }
+  if (grain === "week") {
+    const formatter = new Intl.DateTimeFormat("zh-CN", { month: "short", day: "numeric" });
+    return `${formatter.format(from)} - ${formatter.format(to)}`;
+  }
+  if (grain === "month") {
+    return new Intl.DateTimeFormat("zh-CN", { year: "numeric", month: "long" }).format(from);
+  }
+  return `${from.getFullYear()} 年`;
 }
 
 function splitTags(value: string): string[] {
@@ -39,6 +137,23 @@ function primaryAsset(note: Note): Asset | undefined {
     note.assets.find((asset) => asset.kind === "cover") ??
     note.assets[0]
   );
+}
+
+function isImageAsset(asset: Asset): boolean {
+  return asset.mime_type?.startsWith("image") ?? /\.(png|jpe?g|webp|gif)$/i.test(asset.file_name);
+}
+
+function groupNotesByDay(notes: Note[]) {
+  const groups = new Map<string, Note[]>();
+  for (const note of notes) {
+    const key = formatInputDate(new Date(note.created_at));
+    groups.set(key, [...(groups.get(key) ?? []), note]);
+  }
+  return Array.from(groups.entries()).map(([day, items]) => ({
+    day,
+    label: formatGroupDate(items[0].created_at),
+    items
+  }));
 }
 
 function Login({ onLogin }: { onLogin: (token: string) => void }) {
@@ -87,7 +202,17 @@ function Login({ onLogin }: { onLogin: (token: string) => void }) {
   );
 }
 
-function MediaPreview({ note, token, large = false }: { note: Note; token: string; large?: boolean }) {
+function MediaPreview({
+  note,
+  token,
+  large = false,
+  onImageOpen
+}: {
+  note: Note;
+  token: string;
+  large?: boolean;
+  onImageOpen?: (image: ImageViewer) => void;
+}) {
   const asset = primaryAsset(note);
   const cover = note.assets.find((item) => item.kind === "cover");
   if (!asset) {
@@ -104,7 +229,18 @@ function MediaPreview({ note, token, large = false }: { note: Note; token: strin
       />
     );
   }
-  return <img className={`media ${large ? "large" : ""}`} src={assetUrl(asset, token)} alt={note.title ?? "note"} />;
+
+  const src = assetUrl(asset, token);
+  const image = <img className={`media ${large ? "large" : ""}`} src={src} alt={note.title ?? "note"} />;
+  if (large && isImageAsset(asset) && onImageOpen) {
+    return (
+      <button className="media-open" onClick={() => onImageOpen({ src, alt: note.title ?? asset.file_name })}>
+        {image}
+        <span>点击查看大图</span>
+      </button>
+    );
+  }
+  return image;
 }
 
 function NoteCard({ note, token, onOpen }: { note: Note; token: string; onOpen: () => void }) {
@@ -128,6 +264,57 @@ function NoteCard({ note, token, onOpen }: { note: Note; token: string; onOpen: 
         ) : null}
       </div>
     </button>
+  );
+}
+
+function DateBrowser({
+  anchorDate,
+  grain,
+  rangeLabel,
+  onAnchorDateChange,
+  onGrainChange
+}: {
+  anchorDate: string;
+  grain: DateGrain;
+  rangeLabel: string;
+  onAnchorDateChange: (value: string) => void;
+  onGrainChange: (value: DateGrain) => void;
+}) {
+  function move(amount: number) {
+    onAnchorDateChange(formatInputDate(addDateRange(parseInputDate(anchorDate), grain, amount)));
+  }
+
+  return (
+    <section className="date-browser" aria-label="date browser">
+      <div className="date-browser-main">
+        <CalendarDays size={18} />
+        <button className="icon-button compact" onClick={() => move(-1)} aria-label="previous date range">
+          <ChevronLeft size={18} />
+        </button>
+        <div>
+          <p className="range-label">{rangeLabel}</p>
+          <input type="date" value={anchorDate} onChange={(event) => onAnchorDateChange(event.target.value)} />
+        </div>
+        <button className="icon-button compact" onClick={() => move(1)} aria-label="next date range">
+          <ChevronRight size={18} />
+        </button>
+      </div>
+      <div className="segmented compact-segmented" aria-label="date grain">
+        {dateGrains.map((item) => (
+          <button
+            key={item.value}
+            className={grain === item.value ? "active" : ""}
+            onClick={() => onGrainChange(item.value)}
+            type="button"
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+      <button className="subtle-button" onClick={() => onAnchorDateChange(formatInputDate(new Date()))}>
+        今天
+      </button>
+    </section>
   );
 }
 
@@ -200,17 +387,58 @@ function CapturePanel({ token, onSaved }: { token: string; onSaved: (note: Note)
   );
 }
 
-function Detail({ note, token, onClose, onUpdated }: { note: Note; token: string; onClose: () => void; onUpdated: (note: Note) => void }) {
+function Detail({
+  note,
+  token,
+  onClose,
+  onUpdated,
+  onDeleted,
+  onImageOpen
+}: {
+  note: Note;
+  token: string;
+  onClose: () => void;
+  onUpdated: (note: Note) => void;
+  onDeleted: (id: string) => void;
+  onImageOpen: (image: ImageViewer) => void;
+}) {
   const [remark, setRemark] = useState(note.remark ?? "");
   const [tags, setTags] = useState(note.tags.join(" "));
   const [saving, setSaving] = useState(false);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    setRemark(note.remark ?? "");
+    setTags(note.tags.join(" "));
+    setConfirmDelete(false);
+    setError("");
+  }, [note.id, note.remark, note.tags]);
 
   async function save() {
     setSaving(true);
+    setError("");
     try {
       onUpdated(await api.updateNote(token, note.id, { remark, tags: splitTags(tags) }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "保存失败");
     } finally {
       setSaving(false);
+    }
+  }
+
+  async function remove() {
+    setDeleting(true);
+    setError("");
+    try {
+      await api.deleteNote(token, note.id);
+      onDeleted(note.id);
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "删除失败");
+    } finally {
+      setDeleting(false);
     }
   }
 
@@ -225,7 +453,7 @@ function Detail({ note, token, onClose, onUpdated }: { note: Note; token: string
           <X size={20} />
         </button>
       </div>
-      <MediaPreview note={note} token={token} large />
+      <MediaPreview note={note} token={token} large onImageOpen={onImageOpen} />
       <div className="detail-grid">
         {note.author ? <p><strong>作者</strong><span>{note.author}</span></p> : null}
         {note.source_url ? <p><strong>来源</strong><a href={note.source_url} target="_blank" rel="noreferrer">打开</a></p> : null}
@@ -239,9 +467,16 @@ function Detail({ note, token, onClose, onUpdated }: { note: Note; token: string
         <span>标签</span>
         <input value={tags} onChange={(event) => setTags(event.target.value)} />
       </label>
-      <button className="primary" onClick={save} disabled={saving}>
-        {saving ? "保存中" : "保存修改"}
-      </button>
+      {error ? <p className="error">{error}</p> : null}
+      <div className="detail-actions">
+        <button className="primary" onClick={save} disabled={saving}>
+          {saving ? "保存中" : "保存修改"}
+        </button>
+        <button className="danger-button icon-text" onClick={() => setConfirmDelete(true)}>
+          <Trash2 size={18} />
+          删除记录
+        </button>
+      </div>
       {note.ocr_text ? (
         <section className="text-block">
           <p className="eyebrow">OCR</p>
@@ -254,7 +489,60 @@ function Detail({ note, token, onClose, onUpdated }: { note: Note; token: string
           <p>{note.source_text}</p>
         </section>
       ) : null}
+      {confirmDelete ? (
+        <div className="confirm-popover" role="dialog" aria-modal="true" aria-label="confirm delete">
+          <div>
+            <p className="confirm-title">确认删除这条记录？</p>
+            <p className="confirm-copy">这会删除记录和服务器上的关联媒体文件，操作不可撤销。</p>
+          </div>
+          <div className="confirm-actions">
+            <button className="subtle-button" onClick={() => setConfirmDelete(false)} disabled={deleting}>
+              取消
+            </button>
+            <button className="danger-button" onClick={remove} disabled={deleting}>
+              {deleting ? "删除中" : "确认删除"}
+            </button>
+          </div>
+        </div>
+      ) : null}
     </aside>
+  );
+}
+
+function ImageLightbox({ image, onClose }: { image: ImageViewer; onClose: () => void }) {
+  const [zoom, setZoom] = useState(1);
+  if (!image) return null;
+
+  function updateZoom(next: number) {
+    setZoom(Math.min(4, Math.max(0.5, next)));
+  }
+
+  function handleWheel(event: WheelEvent<HTMLDivElement>) {
+    event.preventDefault();
+    updateZoom(zoom + (event.deltaY > 0 ? -0.15 : 0.15));
+  }
+
+  return (
+    <div className="lightbox" role="dialog" aria-modal="true" onClick={onClose}>
+      <div className="lightbox-toolbar" onClick={(event) => event.stopPropagation()}>
+        <button className="icon-button" onClick={() => updateZoom(zoom - 0.25)} aria-label="zoom out">
+          <ZoomOut size={19} />
+        </button>
+        <span>{Math.round(zoom * 100)}%</span>
+        <button className="icon-button" onClick={() => updateZoom(zoom + 0.25)} aria-label="zoom in">
+          <ZoomIn size={19} />
+        </button>
+        <button className="icon-button" onClick={() => setZoom(1)} aria-label="reset zoom">
+          <RotateCcw size={18} />
+        </button>
+        <button className="icon-button" onClick={onClose} aria-label="close image preview">
+          <X size={20} />
+        </button>
+      </div>
+      <div className="lightbox-stage" onWheel={handleWheel} onClick={(event) => event.stopPropagation()}>
+        <img src={image.src} alt={image.alt} style={{ transform: `scale(${zoom})` }} />
+      </div>
+    </div>
   );
 }
 
@@ -265,18 +553,30 @@ export function App() {
   const [query, setQuery] = useState("");
   const [type, setType] = useState("");
   const [tag, setTag] = useState("");
+  const [dateGrain, setDateGrain] = useState<DateGrain>("month");
+  const [anchorDate, setAnchorDate] = useState(formatInputDate(new Date()));
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [imageViewer, setImageViewer] = useState<ImageViewer>(null);
 
   const selected = useMemo(() => notes.find((note) => note.id === selectedId) ?? null, [notes, selectedId]);
+  const currentRange = useMemo(() => dateRange(anchorDate, dateGrain), [anchorDate, dateGrain]);
+  const groupedNotes = useMemo(() => groupNotesByDay(notes), [notes]);
 
   async function refresh() {
     if (!token) return;
     setLoading(true);
     setError("");
     try {
-      const result = await api.listNotes(token, { query, type, tag });
+      const result = await api.listNotes(token, {
+        query,
+        type,
+        tag,
+        from: currentRange.from.toISOString(),
+        to: currentRange.to.toISOString()
+      });
       setNotes(result.items);
+      setSelectedId((current) => (current && result.items.some((note) => note.id === current) ? current : null));
     } catch (err) {
       setError(err instanceof Error ? err.message : "加载失败");
     } finally {
@@ -286,7 +586,7 @@ export function App() {
 
   useEffect(() => {
     refresh();
-  }, [token]);
+  }, [token, dateGrain, anchorDate, type]);
 
   if (!token) {
     return <Login onLogin={setToken} />;
@@ -324,6 +624,14 @@ export function App() {
         </div>
       </header>
 
+      <DateBrowser
+        anchorDate={anchorDate}
+        grain={dateGrain}
+        rangeLabel={currentRange.label}
+        onAnchorDateChange={setAnchorDate}
+        onGrainChange={setDateGrain}
+      />
+
       <section className="toolbar">
         <label className="search-box">
           <Search size={18} />
@@ -336,7 +644,7 @@ export function App() {
         </select>
         <label className="tag-filter">
           <Tag size={17} />
-          <input value={tag} onChange={(event) => setTag(event.target.value)} placeholder="标签" />
+          <input value={tag} onChange={(event) => setTag(event.target.value)} onKeyDown={(event) => event.key === "Enter" && refresh()} placeholder="标签" />
         </label>
         <button onClick={refresh} disabled={loading}>
           {loading ? "加载中" : "刷新"}
@@ -354,10 +662,20 @@ export function App() {
       {error ? <p className="error">{error}</p> : null}
 
       <section className="timeline">
-        {notes.map((note) => (
-          <NoteCard key={note.id} note={note} token={token} onOpen={() => setSelectedId(note.id)} />
+        {groupedNotes.map((group) => (
+          <section className="day-group" key={group.day}>
+            <div className="day-heading">
+              <h2>{group.label}</h2>
+              <span>{group.items.length} 条</span>
+            </div>
+            <div className="day-grid">
+              {group.items.map((note) => (
+                <NoteCard key={note.id} note={note} token={token} onOpen={() => setSelectedId(note.id)} />
+              ))}
+            </div>
+          </section>
         ))}
-        {!loading && notes.length === 0 ? <p className="empty">还没有记录</p> : null}
+        {!loading && notes.length === 0 ? <p className="empty">这个时间段还没有记录</p> : null}
       </section>
 
       {selected ? (
@@ -368,9 +686,14 @@ export function App() {
           onUpdated={(note) => {
             setNotes((current) => current.map((item) => (item.id === note.id ? note : item)));
           }}
+          onDeleted={(id) => {
+            setNotes((current) => current.filter((item) => item.id !== id));
+            setSelectedId(null);
+          }}
+          onImageOpen={setImageViewer}
         />
       ) : null}
+      <ImageLightbox image={imageViewer} onClose={() => setImageViewer(null)} />
     </main>
   );
 }
-
